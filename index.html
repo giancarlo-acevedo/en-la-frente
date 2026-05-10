@@ -620,27 +620,29 @@ function setHint(txt, color) {
   if (el) { el.textContent = txt; el.style.color = color; }
 }
 
+// Detectar orientación de pantalla UNA sola vez al montar el sensor
+// 0°/180° = portrait (vertical) → eje Y
+// 90°/270° = landscape (horizontal) → eje Z
+let isVertical = true;
+
+function detectOrientation() {
+  const angle = (screen.orientation && screen.orientation.angle !== undefined)
+    ? screen.orientation.angle
+    : (window.orientation || 0);
+  isVertical = (angle === 0 || angle === 180);
+}
+
 function onMotion(e) {
   const acc = e.acceleration;
-  const accG = e.accelerationIncludingGravity;
-  if (!acc || !accG) return;
-
-  // Detectar orientación por gravedad:
-  // Si |gx| > |gz| el celular está vertical (en la frente), usar eje Y
-  // Si |gz| es dominante el celular está horizontal (sobre la mesa), usar eje Z
-  const gx = accG.x || 0;
-  const gz = accG.z || 0;
-  const isVertical = Math.abs(gx) > Math.abs(gz);
+  if (!acc) return;
 
   const val = isVertical ? (acc.y || 0) : (acc.z || 0);
   const THRESHOLD = 8;
 
   if (!active || sensorLocked) return;
 
-  // Vertical (frente): sube = ay positivo = correcto, baja = ay negativo = paso
-  // Horizontal (mesa): sube = az negativo = correcto, baja = az positivo = paso
-  const goUp   = isVertical ? val > THRESHOLD  : val < -THRESHOLD;
-  const goDown  = isVertical ? val < -THRESHOLD : val > THRESHOLD;
+  const goUp  = isVertical ? val > THRESHOLD  : val < -THRESHOLD;
+  const goDown = isVertical ? val < -THRESHOLD : val > THRESHOLD;
 
   if (goUp) {
     setHint('↑ sube detectado', '#c8f542');
@@ -653,11 +655,11 @@ function onMotion(e) {
     markSkip();
     setTimeout(() => { sensorLocked = false; }, 300);
   } else if (val > 3) {
-    setHint(isVertical ? '↑ sube para correcto' : '↓ baja para pasar', '#888');
+    setHint(isVertical ? '↑ sube para correcto' : '↑ sube para correcto', '#888');
   } else if (val < -3) {
-    setHint(isVertical ? '↓ baja para pasar' : '↑ sube para correcto', '#888');
+    setHint(isVertical ? '↓ baja para pasar' : '↓ baja para pasar', '#888');
   } else {
-    setHint(`esperando... (${isVertical ? 'vertical' : 'horizontal'})`, '#555');
+    setHint(`listo (${isVertical ? 'portrait' : 'landscape'})`, '#555');
   }
 }
 
@@ -690,12 +692,12 @@ async function startFlow() {
     } catch(e) {
       document.getElementById('demo-row').style.display = 'flex';
     }
-    startCountdown(() => { if (hasSensor) attachSensors(); initGame(); });
+    startCountdown(() => { if (hasSensor) { detectOrientation(); attachSensors(); } initGame(); });
   } else if (window.DeviceOrientationEvent || window.DeviceMotionEvent) {
     // Android: countdown primero, sensores al arrancar
     hasSensor = true;
     document.getElementById('demo-row').style.display = 'none';
-    startCountdown(() => { attachSensors(); initGame(); });
+    startCountdown(() => { detectOrientation(); attachSensors(); initGame(); });
   } else {
     msg.style.display = 'block';
     msg.textContent = 'Sensor no detectado. Usa los botones para jugar.';
