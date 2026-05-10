@@ -540,6 +540,7 @@ function initGame() {
   words = shuffle(WORDS);
   idx = 0; ok = 0; skip = 0; results = [];
   timeLeft = selTime; active = true; cooldown = false; lastDir = null;
+  prevBeta = null; prevAz = null; neutralSeen = true;
   document.getElementById('s-ok').textContent = 0;
   document.getElementById('s-skip').textContent = 0;
   document.getElementById('word-display').className = 'word-display';
@@ -598,56 +599,63 @@ function endGame() {
   show('s-result');
 }
 
-// ---- DEBUG overlay ----
-const dbg = document.createElement('div');
-dbg.id = 'dbg';
-dbg.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;background:rgba(0,0,0,0.75);color:#c8f542;font-family:monospace;font-size:11px;padding:6px 10px;border-radius:8px;z-index:999;pointer-events:none;display:none;line-height:1.6';
-document.body.appendChild(dbg);
+// ---- Sensor state A+B ----
+// A: detectar gesto (cambio brusco de ángulo en un tick)
+// B: zona neutra obligatoria antes de permitir otro disparo
+let prevBeta = null;
+let neutralSeen = true;
+const NEUTRAL_MIN = -20;
+const NEUTRAL_MAX =  20;
+const GESTURE_THRESH = 18;
+const TRIGGER_OK   = -30;
+const TRIGGER_SKIP =  30;
 
-function showDbg(txt) { dbg.style.display='block'; dbg.textContent = txt; }
-
-// ---- orientation handler ----
 function onOrient(e) {
-  const a = e.alpha !== null ? e.alpha.toFixed(1) : '?';
-  const b = e.beta  !== null ? e.beta.toFixed(1)  : '?';
-  const g = e.gamma !== null ? e.gamma.toFixed(1) : '?';
-  showDbg(`orient → α:${a} β:${b} γ:${g}`);
-
-  if (!active || cooldown) return;
   const beta = e.beta;
   if (beta === null) return;
 
-  // celular en la frente: beta ~0 (plano)
-  // inclina frente al suelo (hacia adelante): beta baja → correcto
-  // inclina hacia la nuca (hacia atrás): beta sube → paso
-  if (beta < -15) {
-    if (lastDir !== 'ok') { lastDir = 'ok'; markCorrect(); }
-  } else if (beta > 40) {
-    if (lastDir !== 'skip') { lastDir = 'skip'; markSkip(); }
-  } else {
-    lastDir = null;
+  // B: zona neutra — habilita el siguiente gesto
+  if (beta > NEUTRAL_MIN && beta < NEUTRAL_MAX) neutralSeen = true;
+
+  if (!active || cooldown) return;
+  if (prevBeta === null) { prevBeta = beta; return; }
+
+  const delta = beta - prevBeta;
+  prevBeta = beta;
+
+  // A+B: gesto rápido hacia adelante (correcto)
+  if (delta < -GESTURE_THRESH && beta < TRIGGER_OK && neutralSeen) {
+    neutralSeen = false;
+    markCorrect();
+  }
+  // A+B: gesto rápido hacia atrás (paso)
+  else if (delta > GESTURE_THRESH && beta > TRIGGER_SKIP && neutralSeen) {
+    neutralSeen = false;
+    markSkip();
   }
 }
 
-// ---- motion handler (respaldo para Android que no dispara orientation) ----
-let lastAy = 0;
+// ---- motion handler (respaldo si orientation no entrega beta) ----
+let prevAz = null;
 function onMotion(e) {
   const acc = e.accelerationIncludingGravity;
-  if (!acc) return;
-  const ay = acc.y !== null ? acc.y : 0;
-  const az = acc.z !== null ? acc.z : 0;
-  showDbg(`motion → ay:${ay.toFixed(1)} az:${az.toFixed(1)}`);
+  if (!acc || acc.z === null) return;
+  const az = acc.z;
+
+  if (az > -3 && az < 3) neutralSeen = true;
 
   if (!active || cooldown) return;
+  if (prevAz === null) { prevAz = az; return; }
 
-  // az: positivo cuando pantalla hacia arriba, negativo cuando hacia abajo
-  // cuando está en la frente az ≈ 0, inclina adelante az se vuelve negativo
-  if (az < -6) {
-    if (lastDir !== 'ok') { lastDir = 'ok'; markCorrect(); }
-  } else if (az > 6) {
-    if (lastDir !== 'skip') { lastDir = 'skip'; markSkip(); }
-  } else {
-    lastDir = null;
+  const daz = az - prevAz;
+  prevAz = az;
+
+  if (daz < -4 && az < -7 && neutralSeen) {
+    neutralSeen = false;
+    markCorrect();
+  } else if (daz > 4 && az > 7 && neutralSeen) {
+    neutralSeen = false;
+    markSkip();
   }
 }
 
