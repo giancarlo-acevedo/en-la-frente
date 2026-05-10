@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0d">
+<title>¡En la Frente!</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #181818;
+    --surface2: #222;
+    --accent: #c8f542;
+    --accent-dim: #8fb32e;
+    --danger: #ff4d4d;
+    --danger-dim: #c23b3b;
+    --text: #f0f0f0;
+    --muted: #888;
+    --border: rgba(255,255,255,0.08);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+  #app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    position: relative;
+  }
+
+  /* ---- noise overlay ---- */
+  #app::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    gap: 1.4rem;
+    position: relative;
+    z-index: 1;
+  }
+  .screen.active { display: flex; }
+
+  /* ---- HOME ---- */
+  .logo {
+    font-size: 13px;
+    font-family: 'Syne Mono', monospace;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .home-title {
+    font-size: clamp(38px, 12vw, 52px);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    color: var(--text);
+  }
+  .home-title span { color: var(--accent); }
+
+  .instructions {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+  }
+  .instr-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  .instr-icon {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .instr-label {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .instr-action {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-family: 'Syne Mono', monospace;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    align-self: flex-start;
+  }
+
+  .time-row {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+  .time-btn {
+    flex: 1;
+    padding: 0.6rem 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .time-btn.selected {
+    background: var(--accent);
+    color: #0d0d0d;
+    border-color: var(--accent);
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 14px;
+    border: none;
+    background: var(--accent);
+    color: #0d0d0d;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: transform 0.1s, background 0.15s;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:hover { background: #d4f95e; }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 0.8rem;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+  .perm-msg {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    text-align: center;
+    display: none;
+  }
+
+  /* ---- GAME ---- */
+  .game-top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .timer-wrap {
+    position: relative;
+    width: 72px;
+    height: 72px;
+  }
+  .timer-wrap svg { transform: rotate(-90deg); }
+  .timer-wrap circle { fill: none; stroke-width: 4; }
+  #tbg { stroke: var(--surface2); }
+  #tarc { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke 0.4s; }
+  #tnum {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800;
+    color: var(--text);
+  }
+
+  .scores {
+    display: flex;
+    gap: 10px;
+  }
+  .score-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 99px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 16px;
+    font-weight: 800;
+  }
+  .score-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .dot-ok { background: var(--accent); }
+  .dot-skip { background: var(--danger); }
+
+  /* word display */
+  .word-display {
+    width: 100%;
+    min-height: 220px;
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 2rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.25s, border-color 0.25s;
+  }
+  .word-display.flash-ok {
+    background: #1a2e0a;
+    border-color: var(--accent);
+  }
+  .word-display.flash-skip {
+    background: #2e0a0a;
+    border-color: var(--danger);
+  }
+  .word-display::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 24px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .word-display.flash-ok::after { background: radial-gradient(circle, rgba(200,245,66,0.08), transparent 70%); opacity: 1; }
+  .word-display.flash-skip::after { background: radial-gradient(circle, rgba(255,77,77,0.1), transparent 70%); opacity: 1; }
+
+  #word-text {
+    font-size: clamp(30px, 9vw, 42px);
+    font-weight: 800;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.1;
+    transition: opacity 0.2s;
+  }
+  #word-feedback {
+    font-size: 14px;
+    color: var(--muted);
+    font-family: 'Syne Mono', monospace;
+    letter-spacing: 0.1em;
+    min-height: 20px;
+  }
+
+  .tilt-guide {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Syne Mono', monospace;
+    padding: 0 4px;
+  }
+  .tilt-guide .ok-side { color: var(--accent-dim); }
+  .tilt-guide .skip-side { color: var(--danger-dim); }
+
+  /* demo buttons (fallback) */
+  .demo-row {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+  }
+  .demo-ok, .demo-skip {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s;
+  }
+  .demo-ok:active, .demo-skip:active { transform: scale(0.97); }
+  .demo-ok { background: var(--accent); color: #0d0d0d; }
+  .demo-skip { background: var(--danger); color: #fff; }
+
+  /* ---- RESULTS ---- */
+  .result-header {
+    text-align: center;
+  }
+  .result-header h2 {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .result-header p {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .result-scores {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+  }
+  .result-score-card {
+    flex: 1;
+    border-radius: 16px;
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .result-score-card.ok-card { background: #1a2e0a; border: 1px solid rgba(200,245,66,0.2); }
+  .result-score-card.skip-card { background: #2e0a0a; border: 1px solid rgba(255,77,77,0.2); }
+  .result-score-num { font-size: 42px; font-weight: 800; line-height: 1; }
+  .ok-card .result-score-num { color: var(--accent); }
+  .skip-card .result-score-num { color: var(--danger); }
+  .result-score-label { font-size: 12px; color: var(--muted); font-family: 'Syne Mono', monospace; }
+
+  .result-list {
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 2px;
+  }
+  .result-list::-webkit-scrollbar { width: 3px; }
+  .result-list::-webkit-scrollbar-track { background: transparent; }
+  .result-list::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 99px; }
+
+  .result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.9rem;
+    background: var(--surface);
+    border-radius: 10px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+  }
+  .result-badge {
+    font-size: 11px;
+    font-family: 'Syne Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 99px;
+    letter-spacing: 0.05em;
+  }
+  .badge-ok { background: rgba(200,245,66,0.12); color: var(--accent); }
+  .badge-skip { background: rgba(255,77,77,0.12); color: var(--danger); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div class="screen active" id="s-home">
+    <div class="logo">juego de palabras</div>
+    <div class="home-title">¡En la<br><span>Frente!</span></div>
+
+    <div class="instructions">
+      <div class="instr-card">
+        <div class="instr-icon">📱</div>
+        <div class="instr-action">Ponlo en la frente</div>
+        <div class="instr-label">pantalla hacia afuera</div>
+      </div>
+      <div class="instr-card">
+        <div class="instr-icon">⬆️</div>
+        <div class="instr-action">Inclina arriba</div>
+        <div class="instr-label">¡Lo adiviné!</div>
+      </div>
+      <div class="instr-card">
+        <div class="instr-icon">⬇️</div>
+        <div class="instr-action">Inclina abajo</div>
+        <div class="instr-label">Paso</div>
+      </div>
+    </div>
+
+    <div class="section-label">Tiempo de ronda</div>
+    <div class="time-row" id="time-row">
+      <button class="time-btn" data-t="30">30s</button>
+      <button class="time-btn selected" data-t="60">60s</button>
+      <button class="time-btn" data-t="90">90s</button>
+      <button class="time-btn" data-t="120">2min</button>
+    </div>
+
+    <div class="perm-msg" id="perm-msg"></div>
+    <button class="btn-primary" id="btn-start">¡Empezar!</button>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="s-game">
+    <div class="game-top">
+      <div class="timer-wrap">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle id="tbg" cx="36" cy="36" r="32"/>
+          <circle id="tarc" cx="36" cy="36" r="32"/>
+        </svg>
+        <div id="tnum">60</div>
+      </div>
+      <div class="scores">
+        <div class="score-pill"><div class="dot dot-ok"></div><span id="s-ok">0</span></div>
+        <div class="score-pill"><div class="dot dot-skip"></div><span id="s-skip">0</span></div>
+      </div>
+    </div>
+
+    <div class="word-display" id="word-display">
+      <div id="word-text">—</div>
+      <div id="word-feedback">inclina el celular</div>
+    </div>
+
+    <div class="tilt-guide">
+      <span class="ok-side">↑ correcto</span>
+      <span class="skip-side">↓ paso</span>
+    </div>
+
+    <div class="demo-row" id="demo-row" style="display:none">
+      <button class="demo-ok" onclick="markCorrect()">✓ Correcto</button>
+      <button class="demo-skip" onclick="markSkip()">→ Paso</button>
+    </div>
+
+    <button class="btn-secondary" id="btn-end">Terminar ronda</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="screen" id="s-result">
+    <div class="result-header">
+      <h2>¡Tiempo!</h2>
+      <p>Así quedó la ronda</p>
+    </div>
+    <div class="result-scores">
+      <div class="result-score-card ok-card">
+        <div class="result-score-num" id="r-ok">0</div>
+        <div class="result-score-label">adivinadas</div>
+      </div>
+      <div class="result-score-card skip-card">
+        <div class="result-score-num" id="r-skip">0</div>
+        <div class="result-score-label">pasadas</div>
+      </div>
+    </div>
+    <div class="result-list" id="r-list"></div>
+    <button class="btn-primary" id="btn-again">Jugar otra vez</button>
+  </div>
+
+</div>
+
+<script>
+const WORDS = [
+  "árbol","gato","avión","guitarra","montaña","pizza","elefante","luna","bicicleta","libro",
+  "silla","computadora","cámara","zapato","teléfono","pelota","reloj","ventana","puerta","flor",
+  "sol","río","pájaro","barco","tren","cohete","castillo","tijeras","tenedor","cuchara",
+  "ballena","tigre","oso","jirafa","serpiente","mariposa","cocodrilo","pingüino","loro","águila",
+  "fútbol","básquetbol","tenis","béisbol","natación","ciclismo","boxeo","golf","esquí","voleibol",
+  "doctor","maestro","cocinero","piloto","bombero","astronauta","detective","pintor","músico","actor",
+  "nevera","lavadora","aspiradora","televisión","horno","licuadora","ventilador","lámpara","espejo","cama",
+  "playa","desierto","volcán","cueva","cascada","bosque","isla","glaciar","pantano","pradera",
+  "manzana","sandía","uva","limón","fresa","naranja","mango","piña","aguacate","cereza",
+  "chocolate","helado","torta","pan","queso","hamburguesa","sushi","tacos","pasta","sopa"
+];
+
+const CIRC = 2 * Math.PI * 32;
+let selTime = 60, timeLeft = 60, timer = null;
+let words = [], idx = 0, ok = 0, skip = 0, results = [];
+let active = false, cooldown = false, lastDir = null;
+let hasSensor = false;
+
+document.getElementById('tarc').style.strokeDasharray = CIRC;
+
+// time select
+document.querySelectorAll('.time-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.time-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    selTime = +b.dataset.t;
+  });
+});
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function shuffle(a) {
+  const r = [...a];
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+}
+
+function updateTimer() {
+  document.getElementById('tnum').textContent = timeLeft;
+  const offset = CIRC * (1 - timeLeft / selTime);
+  document.getElementById('tarc').style.strokeDashoffset = offset;
+  document.getElementById('tarc').style.stroke = timeLeft <= 10 ? '#ff4d4d' : '#c8f542';
+}
+
+function initGame() {
+  words = shuffle(WORDS);
+  idx = 0; ok = 0; skip = 0; results = [];
+  timeLeft = selTime; active = true; cooldown = false; lastDir = null;
+  document.getElementById('s-ok').textContent = 0;
+  document.getElementById('s-skip').textContent = 0;
+  document.getElementById('word-display').className = 'word-display';
+  document.getElementById('word-text').textContent = words[0];
+  document.getElementById('word-feedback').textContent = hasSensor ? 'inclina el celular' : '';
+  updateTimer();
+  show('s-game');
+  timer = setInterval(() => { timeLeft--; updateTimer(); if (timeLeft <= 0) endGame(); }, 1000);
+}
+
+function markCorrect() {
+  if (!active || cooldown) return;
+  cooldown = true;
+  ok++;
+  results.push({ word: words[idx], ok: true });
+  document.getElementById('s-ok').textContent = ok;
+  const d = document.getElementById('word-display');
+  d.className = 'word-display flash-ok';
+  document.getElementById('word-feedback').textContent = '✓ ¡Correcto!';
+  setTimeout(() => { next(); cooldown = false; }, 650);
+}
+
+function markSkip() {
+  if (!active || cooldown) return;
+  cooldown = true;
+  skip++;
+  results.push({ word: words[idx], ok: false });
+  document.getElementById('s-skip').textContent = skip;
+  const d = document.getElementById('word-display');
+  d.className = 'word-display flash-skip';
+  document.getElementById('word-feedback').textContent = '→ Paso';
+  setTimeout(() => { next(); cooldown = false; }, 650);
+}
+
+function next() {
+  idx = (idx + 1) % words.length;
+  document.getElementById('word-display').className = 'word-display';
+  document.getElementById('word-text').textContent = words[idx];
+  document.getElementById('word-feedback').textContent = hasSensor ? 'inclina el celular' : '';
+}
+
+function endGame() {
+  active = false;
+  clearInterval(timer);
+  detachSensors();
+  document.getElementById('r-ok').textContent = ok;
+  document.getElementById('r-skip').textContent = skip;
+  const list = document.getElementById('r-list');
+  list.innerHTML = '';
+  results.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'result-item';
+    div.innerHTML = `<span>${r.word}</span><span class="result-badge ${r.ok ? 'badge-ok' : 'badge-skip'}">${r.ok ? '¡correcto!' : 'paso'}</span>`;
+    list.appendChild(div);
+  });
+  show('s-result');
+}
+
+// ---- DEBUG overlay ----
+const dbg = document.createElement('div');
+dbg.id = 'dbg';
+dbg.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;background:rgba(0,0,0,0.75);color:#c8f542;font-family:monospace;font-size:11px;padding:6px 10px;border-radius:8px;z-index:999;pointer-events:none;display:none;line-height:1.6';
+document.body.appendChild(dbg);
+
+function showDbg(txt) { dbg.style.display='block'; dbg.textContent = txt; }
+
+// ---- orientation handler ----
+function onOrient(e) {
+  const a = e.alpha !== null ? e.alpha.toFixed(1) : '?';
+  const b = e.beta  !== null ? e.beta.toFixed(1)  : '?';
+  const g = e.gamma !== null ? e.gamma.toFixed(1) : '?';
+  showDbg(`orient → α:${a} β:${b} γ:${g}`);
+
+  if (!active || cooldown) return;
+  const beta = e.beta;
+  if (beta === null) return;
+
+  // celular en la frente: beta ~0 (plano)
+  // inclina frente al suelo (hacia adelante): beta baja → correcto
+  // inclina hacia la nuca (hacia atrás): beta sube → paso
+  if (beta < -15) {
+    if (lastDir !== 'ok') { lastDir = 'ok'; markCorrect(); }
+  } else if (beta > 40) {
+    if (lastDir !== 'skip') { lastDir = 'skip'; markSkip(); }
+  } else {
+    lastDir = null;
+  }
+}
+
+// ---- motion handler (respaldo para Android que no dispara orientation) ----
+let lastAy = 0;
+function onMotion(e) {
+  const acc = e.accelerationIncludingGravity;
+  if (!acc) return;
+  const ay = acc.y !== null ? acc.y : 0;
+  const az = acc.z !== null ? acc.z : 0;
+  showDbg(`motion → ay:${ay.toFixed(1)} az:${az.toFixed(1)}`);
+
+  if (!active || cooldown) return;
+
+  // az: positivo cuando pantalla hacia arriba, negativo cuando hacia abajo
+  // cuando está en la frente az ≈ 0, inclina adelante az se vuelve negativo
+  if (az < -6) {
+    if (lastDir !== 'ok') { lastDir = 'ok'; markCorrect(); }
+  } else if (az > 6) {
+    if (lastDir !== 'skip') { lastDir = 'skip'; markSkip(); }
+  } else {
+    lastDir = null;
+  }
+}
+
+function attachSensors() {
+  window.addEventListener('deviceorientation', onOrient);
+  window.addEventListener('devicemotion', onMotion);
+}
+function detachSensors() {
+  window.removeEventListener('deviceorientation', onOrient);
+  window.removeEventListener('devicemotion', onMotion);
+}
+
+async function startFlow() {
+  const msg = document.getElementById('perm-msg');
+
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+
+    try {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm === 'granted') {
+        hasSensor = true;
+        attachSensors();
+        document.getElementById('demo-row').style.display = 'none';
+      } else {
+        msg.style.display = 'block';
+        msg.textContent = 'Permiso denegado. Usa los botones para jugar.';
+        document.getElementById('demo-row').style.display = 'flex';
+      }
+    } catch(e) {
+      document.getElementById('demo-row').style.display = 'flex';
+    }
+    initGame();
+  } else if (window.DeviceOrientationEvent || window.DeviceMotionEvent) {
+    hasSensor = true;
+    attachSensors();
+    document.getElementById('demo-row').style.display = 'none';
+    initGame();
+  } else {
+    msg.style.display = 'block';
+    msg.textContent = 'Sensor no detectado. Usa los botones para jugar.';
+    document.getElementById('demo-row').style.display = 'flex';
+    initGame();
+  }
+}
+
+document.getElementById('btn-start').addEventListener('click', startFlow);
+document.getElementById('btn-end').addEventListener('click', endGame);
+document.getElementById('btn-again').addEventListener('click', () => {
+  detachSensors();
+  dbg.style.display = 'none';
+  show('s-home');
+});
+
+// prevent sleep on mobile (best effort)
+if ('wakeLock' in navigator) {
+  document.getElementById('btn-start').addEventListener('click', async () => {
+    try { await navigator.wakeLock.request('screen'); } catch(e) {}
+  });
+}
+</script>
+</body>
+</html>
