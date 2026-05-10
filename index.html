@@ -634,20 +634,23 @@ function detectOrientation() {
 
 function onMotion(e) {
   const acc = e.acceleration;
-  if (!acc) return;
+  const grav = e.accelerationIncludingGravity;
+  if (!acc || !grav) return;
 
   const ax = acc.x || 0;
   const ay = acc.y || 0;
   const az = acc.z || 0;
-  const val = isVertical ? ay : az;
+
+  // Debug siempre visible: gravedad (posición estable) + aceleración (movimiento)
+  const gx = (grav.x || 0).toFixed(1);
+  const gy = (grav.y || 0).toFixed(1);
+  const gz = (grav.z || 0).toFixed(1);
+  setHint(`grav x:${gx} y:${gy} z:${gz}`, '#555');
+
+  const val = ay;
   const THRESHOLD = 8;
 
-  if (!active || sensorLocked) {
-    setHint(`x:${ax.toFixed(1)} y:${ay.toFixed(1)} z:${az.toFixed(1)} [${isVertical ? 'portrait' : 'landscape'}]`, '#555');
-    return;
-  }
-
-  setHint(`x:${ax.toFixed(1)} y:${ay.toFixed(1)} z:${az.toFixed(1)} [${isVertical ? 'portrait' : 'landscape'}]`, '#555');
+  if (!active || sensorLocked) return;
 
   const goUp  = val > THRESHOLD;
   const goDown = val < -THRESHOLD;
