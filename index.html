@@ -636,13 +636,21 @@ function onMotion(e) {
   const acc = e.acceleration;
   if (!acc) return;
 
-  const val = isVertical ? (acc.y || 0) : (acc.z || 0);
+  const ax = acc.x || 0;
+  const ay = acc.y || 0;
+  const az = acc.z || 0;
+  const val = isVertical ? ay : az;
   const THRESHOLD = 8;
 
-  if (!active || sensorLocked) return;
+  if (!active || sensorLocked) {
+    setHint(`x:${ax.toFixed(1)} y:${ay.toFixed(1)} z:${az.toFixed(1)} [${isVertical ? 'portrait' : 'landscape'}]`, '#555');
+    return;
+  }
 
-  const goUp  = isVertical ? val > THRESHOLD  : val < -THRESHOLD;
-  const goDown = isVertical ? val < -THRESHOLD : val > THRESHOLD;
+  setHint(`x:${ax.toFixed(1)} y:${ay.toFixed(1)} z:${az.toFixed(1)} [${isVertical ? 'portrait' : 'landscape'}]`, '#555');
+
+  const goUp  = val > THRESHOLD;
+  const goDown = val < -THRESHOLD;
 
   if (goUp) {
     setHint('↑ sube detectado', '#c8f542');
@@ -654,12 +662,6 @@ function onMotion(e) {
     sensorLocked = true;
     markSkip();
     setTimeout(() => { sensorLocked = false; }, 300);
-  } else if (val > 3) {
-    setHint(isVertical ? '↑ sube para correcto' : '↑ sube para correcto', '#888');
-  } else if (val < -3) {
-    setHint(isVertical ? '↓ baja para pasar' : '↓ baja para pasar', '#888');
-  } else {
-    setHint(`listo (${isVertical ? 'portrait' : 'landscape'})`, '#555');
   }
 }
 
