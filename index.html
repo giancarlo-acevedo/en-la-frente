@@ -406,12 +406,12 @@
       </div>
       <div class="instr-card">
         <div class="instr-icon">⬆️</div>
-        <div class="instr-action">Inclina arriba</div>
+        <div class="instr-action">Sube el celular</div>
         <div class="instr-label">¡Lo adiviné!</div>
       </div>
       <div class="instr-card">
         <div class="instr-icon">⬇️</div>
-        <div class="instr-action">Inclina abajo</div>
+        <div class="instr-action">Baja el celular</div>
         <div class="instr-label">Paso</div>
       </div>
     </div>
@@ -457,8 +457,8 @@
     </div>
 
     <div class="tilt-guide">
-      <span class="ok-side">↑ correcto</span>
-      <span class="skip-side">↓ paso</span>
+      <span class="ok-side">↑ sube = correcto</span>
+      <span class="skip-side">↓ baja = paso</span>
     </div>
 
     <div class="demo-row" id="demo-row" style="display:none">
@@ -606,27 +606,46 @@ function endGame() {
   show('s-result');
 }
 
-// ---- Sensor: lógica simple por pico de aceleración ----
-// ay fuerte positivo → correcto | ay fuerte negativo → paso
-// delay de 300ms tras cada disparo, sin zonas neutras ni ángulos
+// ---- Sensor: subir = correcto, bajar = paso ----
+// Usa aceleración en Z (movimiento vertical con celular vertical en la frente)
+// az fuerte negativo → celular sube → correcto
+// az fuerte positivo → celular baja → paso
+// Debug: cambia color del hint según estado del sensor
 let sensorLocked = false;
 
-function onOrient(e) { /* no usado, solo motion */ }
+function onOrient(e) { /* no usado */ }
+
+function setHint(txt, color) {
+  const el = document.getElementById('word-feedback');
+  if (el) { el.textContent = txt; el.style.color = color; }
+}
 
 function onMotion(e) {
+  const acc = e.acceleration; // sin gravedad = solo movimiento real
+  if (!acc) return;
+
+  const az = acc.z !== null ? acc.z : 0;
+  const THRESHOLD = 8;
+
+  // Debug visual: mostrar estado en tiempo real
   if (!active || sensorLocked) return;
-  const acc = e.accelerationIncludingGravity;
-  if (!acc || acc.y === null) return;
-  const ay = acc.y;
-  const THRESHOLD = 12;
-  if (ay > THRESHOLD) {
+
+  if (az < -THRESHOLD) {
+    setHint('↑ sube detectado', '#c8f542');
     sensorLocked = true;
     markCorrect();
     setTimeout(() => { sensorLocked = false; }, 300);
-  } else if (ay < -THRESHOLD) {
+  } else if (az > THRESHOLD) {
+    setHint('↓ baja detectado', '#ff4d4d');
     sensorLocked = true;
     markSkip();
     setTimeout(() => { sensorLocked = false; }, 300);
+  } else if (az > 3) {
+    setHint('↓ baja para pasar', '#888');
+  } else if (az < -3) {
+    setHint('↑ sube para correcto', '#888');
+  } else {
+    setHint('esperando movimiento...', '#555');
   }
 }
 
