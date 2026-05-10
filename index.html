@@ -547,7 +547,7 @@ function initGame() {
   words = shuffle(WORDS);
   idx = 0; ok = 0; skip = 0; results = [];
   timeLeft = selTime; active = true; cooldown = false; lastDir = null;
-  prevBeta = null; prevAz = null; neutralSeen = true;
+  sensorLocked = false;
   document.getElementById('s-ok').textContent = 0;
   document.getElementById('s-skip').textContent = 0;
   document.getElementById('word-display').className = 'word-display';
@@ -606,66 +606,27 @@ function endGame() {
   show('s-result');
 }
 
-// ---- Sensor state A+B ----
-// Celular en la frente = vertical, beta ~ 90°
-// Inclina hacia adelante (correcto): beta sube > 120°
-// Inclina hacia atrás   (paso):      beta baja < 60°
-// Zona neutra: 75° - 105° (alrededor de 90°)
-let prevBeta = null;
-let neutralSeen = true;
-const NEUTRAL_MIN =  75;
-const NEUTRAL_MAX = 105;
-const GESTURE_THRESH = 14;  // grados de cambio brusco por tick
-const TRIGGER_OK   = 115;   // beta mínimo para correcto
-const TRIGGER_SKIP =  65;   // beta máximo para paso
+// ---- Sensor: lógica simple por pico de aceleración ----
+// ay fuerte positivo → correcto | ay fuerte negativo → paso
+// delay de 300ms tras cada disparo, sin zonas neutras ni ángulos
+let sensorLocked = false;
 
-function onOrient(e) {
-  const beta = e.beta;
-  if (beta === null) return;
+function onOrient(e) { /* no usado, solo motion */ }
 
-  // B: zona neutra — habilita el siguiente gesto
-  if (beta > NEUTRAL_MIN && beta < NEUTRAL_MAX) neutralSeen = true;
-
-  if (!active || cooldown) return;
-  if (prevBeta === null) { prevBeta = beta; return; }
-
-  const delta = beta - prevBeta;
-  prevBeta = beta;
-
-  // A+B: gesto hacia adelante (beta sube rápido) → correcto
-  if (delta > GESTURE_THRESH && beta > TRIGGER_OK && neutralSeen) {
-    neutralSeen = false;
-    markCorrect();
-  }
-  // A+B: gesto hacia atrás (beta baja rápido) → paso
-  else if (delta < -GESTURE_THRESH && beta < TRIGGER_SKIP && neutralSeen) {
-    neutralSeen = false;
-    markSkip();
-  }
-}
-
-// ---- motion handler (respaldo si orientation no entrega beta) ----
-let prevAz = null;
 function onMotion(e) {
+  if (!active || sensorLocked) return;
   const acc = e.accelerationIncludingGravity;
-  if (!acc || acc.z === null) return;
-  const az = acc.z;
-
-  // En posición vertical az ≈ 0; hacia adelante az se vuelve negativo, hacia atrás positivo
-  if (az > -2 && az < 2) neutralSeen = true;
-
-  if (!active || cooldown) return;
-  if (prevAz === null) { prevAz = az; return; }
-
-  const daz = az - prevAz;
-  prevAz = az;
-
-  if (daz < -4 && az < -5 && neutralSeen) {
-    neutralSeen = false;
+  if (!acc || acc.y === null) return;
+  const ay = acc.y;
+  const THRESHOLD = 12;
+  if (ay > THRESHOLD) {
+    sensorLocked = true;
     markCorrect();
-  } else if (daz > 4 && az > 5 && neutralSeen) {
-    neutralSeen = false;
+    setTimeout(() => { sensorLocked = false; }, 300);
+  } else if (ay < -THRESHOLD) {
+    sensorLocked = true;
     markSkip();
+    setTimeout(() => { sensorLocked = false; }, 300);
   }
 }
 
