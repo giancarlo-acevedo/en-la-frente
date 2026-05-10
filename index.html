@@ -624,25 +624,24 @@ function onMotion(e) {
   const acc = e.acceleration; // sin gravedad = solo movimiento real
   if (!acc) return;
 
-  const az = acc.z !== null ? acc.z : 0;
+  const ay = acc.y !== null ? acc.y : 0;
   const THRESHOLD = 8;
 
-  // Debug visual: mostrar estado en tiempo real
   if (!active || sensorLocked) return;
 
-  if (az < -THRESHOLD) {
+  if (ay < -THRESHOLD) {
     setHint('↑ sube detectado', '#c8f542');
     sensorLocked = true;
     markCorrect();
     setTimeout(() => { sensorLocked = false; }, 300);
-  } else if (az > THRESHOLD) {
+  } else if (ay > THRESHOLD) {
     setHint('↓ baja detectado', '#ff4d4d');
     sensorLocked = true;
     markSkip();
     setTimeout(() => { sensorLocked = false; }, 300);
-  } else if (az > 3) {
+  } else if (ay > 3) {
     setHint('↓ baja para pasar', '#888');
-  } else if (az < -3) {
+  } else if (ay < -3) {
     setHint('↑ sube para correcto', '#888');
   } else {
     setHint('esperando movimiento...', '#555');
