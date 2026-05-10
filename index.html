@@ -428,6 +428,13 @@
     <button class="btn-primary" id="btn-start">¡Empezar!</button>
   </div>
 
+  <!-- CUENTA REGRESIVA -->
+  <div class="screen" id="s-countdown">
+    <div style="font-size:15px; color:var(--muted); font-family:monospace; letter-spacing:0.1em; text-align:center;">pon el celular en tu frente</div>
+    <div id="cd-number" style="font-size:120px; font-weight:800; color:var(--accent); line-height:1; text-align:center;">3</div>
+    <div style="font-size:14px; color:var(--muted); text-align:center;">el juego empieza solo</div>
+  </div>
+
   <!-- GAME -->
   <div class="screen" id="s-game">
     <div class="game-top">
@@ -604,8 +611,8 @@ function endGame() {
 // B: zona neutra obligatoria antes de permitir otro disparo
 let prevBeta = null;
 let neutralSeen = true;
-const NEUTRAL_MIN = -20;
-const NEUTRAL_MAX =  20;
+const NEUTRAL_MIN = -3;
+const NEUTRAL_MAX =  3;
 const GESTURE_THRESH = 18;
 const TRIGGER_OK   = -30;
 const TRIGGER_SKIP =  30;
@@ -668,16 +675,31 @@ function detachSensors() {
   window.removeEventListener('devicemotion', onMotion);
 }
 
+function startCountdown(andThen) {
+  let count = 3;
+  const el = document.getElementById('cd-number');
+  el.textContent = count;
+  show('s-countdown');
+  const iv = setInterval(() => {
+    count--;
+    if (count <= 0) {
+      clearInterval(iv);
+      andThen();
+    } else {
+      el.textContent = count;
+    }
+  }, 1000);
+}
+
 async function startFlow() {
   const msg = document.getElementById('perm-msg');
+  let sensorReady = false;
 
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    // iOS 13+
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
       if (perm === 'granted') {
-        hasSensor = true;
-        attachSensors();
+        hasSensor = true; sensorReady = true;
         document.getElementById('demo-row').style.display = 'none';
       } else {
         msg.style.display = 'block';
@@ -687,18 +709,19 @@ async function startFlow() {
     } catch(e) {
       document.getElementById('demo-row').style.display = 'flex';
     }
-    initGame();
   } else if (window.DeviceOrientationEvent || window.DeviceMotionEvent) {
-    hasSensor = true;
-    attachSensors();
+    hasSensor = true; sensorReady = true;
     document.getElementById('demo-row').style.display = 'none';
-    initGame();
   } else {
     msg.style.display = 'block';
     msg.textContent = 'Sensor no detectado. Usa los botones para jugar.';
     document.getElementById('demo-row').style.display = 'flex';
-    initGame();
   }
+
+  startCountdown(() => {
+    if (sensorReady) attachSensors();
+    initGame();
+  });
 }
 
 document.getElementById('btn-start').addEventListener('click', startFlow);
