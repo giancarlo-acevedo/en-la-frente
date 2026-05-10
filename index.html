@@ -613,9 +613,9 @@ let prevBeta = null;
 let neutralSeen = true;
 const NEUTRAL_MIN = -3;
 const NEUTRAL_MAX =  3;
-const GESTURE_THRESH = 18;
-const TRIGGER_OK   = -30;
-const TRIGGER_SKIP =  30;
+const GESTURE_THRESH = 14;
+const TRIGGER_OK   = -22;
+const TRIGGER_SKIP =  18;
 
 function onOrient(e) {
   const beta = e.beta;
@@ -675,31 +675,17 @@ function detachSensors() {
   window.removeEventListener('devicemotion', onMotion);
 }
 
-function startCountdown(andThen) {
-  let count = 3;
-  const el = document.getElementById('cd-number');
-  el.textContent = count;
-  show('s-countdown');
-  const iv = setInterval(() => {
-    count--;
-    if (count <= 0) {
-      clearInterval(iv);
-      andThen();
-    } else {
-      el.textContent = count;
-    }
-  }, 1000);
-}
-
 async function startFlow() {
   const msg = document.getElementById('perm-msg');
-  let sensorReady = false;
 
+  // En iOS necesitamos pedir permiso ANTES (requiere gesto de usuario directo)
+  // En Android no necesitamos permiso, vamos directo al countdown
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    // iOS 13+: pedir permiso primero
     try {
       const perm = await DeviceOrientationEvent.requestPermission();
       if (perm === 'granted') {
-        hasSensor = true; sensorReady = true;
+        hasSensor = true;
         document.getElementById('demo-row').style.display = 'none';
       } else {
         msg.style.display = 'block';
@@ -709,26 +695,36 @@ async function startFlow() {
     } catch(e) {
       document.getElementById('demo-row').style.display = 'flex';
     }
+    startCountdown(() => { if (hasSensor) attachSensors(); initGame(); });
   } else if (window.DeviceOrientationEvent || window.DeviceMotionEvent) {
-    hasSensor = true; sensorReady = true;
+    // Android: countdown primero, sensores al arrancar
+    hasSensor = true;
     document.getElementById('demo-row').style.display = 'none';
+    startCountdown(() => { attachSensors(); initGame(); });
   } else {
     msg.style.display = 'block';
     msg.textContent = 'Sensor no detectado. Usa los botones para jugar.';
     document.getElementById('demo-row').style.display = 'flex';
+    startCountdown(() => initGame());
   }
+}
 
-  startCountdown(() => {
-    if (sensorReady) attachSensors();
-    initGame();
-  });
+function startCountdown(andThen) {
+  let count = 3;
+  const el = document.getElementById('cd-number');
+  el.textContent = count;
+  show('s-countdown');
+  const iv = setInterval(() => {
+    count--;
+    if (count <= 0) { clearInterval(iv); andThen(); }
+    else { el.textContent = count; }
+  }, 1000);
 }
 
 document.getElementById('btn-start').addEventListener('click', startFlow);
 document.getElementById('btn-end').addEventListener('click', endGame);
 document.getElementById('btn-again').addEventListener('click', () => {
   detachSensors();
-  dbg.style.display = 'none';
   show('s-home');
 });
 
