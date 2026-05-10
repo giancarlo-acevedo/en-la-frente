@@ -607,15 +607,17 @@ function endGame() {
 }
 
 // ---- Sensor state A+B ----
-// A: detectar gesto (cambio brusco de ángulo en un tick)
-// B: zona neutra obligatoria antes de permitir otro disparo
+// Celular en la frente = vertical, beta ~ 90°
+// Inclina hacia adelante (correcto): beta sube > 120°
+// Inclina hacia atrás   (paso):      beta baja < 60°
+// Zona neutra: 75° - 105° (alrededor de 90°)
 let prevBeta = null;
 let neutralSeen = true;
-const NEUTRAL_MIN = -3;
-const NEUTRAL_MAX =  3;
-const GESTURE_THRESH = 14;
-const TRIGGER_OK   = -22;
-const TRIGGER_SKIP =  18;
+const NEUTRAL_MIN =  75;
+const NEUTRAL_MAX = 105;
+const GESTURE_THRESH = 14;  // grados de cambio brusco por tick
+const TRIGGER_OK   = 115;   // beta mínimo para correcto
+const TRIGGER_SKIP =  65;   // beta máximo para paso
 
 function onOrient(e) {
   const beta = e.beta;
@@ -630,13 +632,13 @@ function onOrient(e) {
   const delta = beta - prevBeta;
   prevBeta = beta;
 
-  // A+B: gesto rápido hacia adelante (correcto)
-  if (delta < -GESTURE_THRESH && beta < TRIGGER_OK && neutralSeen) {
+  // A+B: gesto hacia adelante (beta sube rápido) → correcto
+  if (delta > GESTURE_THRESH && beta > TRIGGER_OK && neutralSeen) {
     neutralSeen = false;
     markCorrect();
   }
-  // A+B: gesto rápido hacia atrás (paso)
-  else if (delta > GESTURE_THRESH && beta > TRIGGER_SKIP && neutralSeen) {
+  // A+B: gesto hacia atrás (beta baja rápido) → paso
+  else if (delta < -GESTURE_THRESH && beta < TRIGGER_SKIP && neutralSeen) {
     neutralSeen = false;
     markSkip();
   }
@@ -649,7 +651,8 @@ function onMotion(e) {
   if (!acc || acc.z === null) return;
   const az = acc.z;
 
-  if (az > -3 && az < 3) neutralSeen = true;
+  // En posición vertical az ≈ 0; hacia adelante az se vuelve negativo, hacia atrás positivo
+  if (az > -2 && az < 2) neutralSeen = true;
 
   if (!active || cooldown) return;
   if (prevAz === null) { prevAz = az; return; }
@@ -657,10 +660,10 @@ function onMotion(e) {
   const daz = az - prevAz;
   prevAz = az;
 
-  if (daz < -4 && az < -7 && neutralSeen) {
+  if (daz < -4 && az < -5 && neutralSeen) {
     neutralSeen = false;
     markCorrect();
-  } else if (daz > 4 && az > 7 && neutralSeen) {
+  } else if (daz > 4 && az > 5 && neutralSeen) {
     neutralSeen = false;
     markSkip();
   }
