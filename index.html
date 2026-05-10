@@ -647,7 +647,7 @@ function onMotion(e) {
   const gz = (grav.z || 0).toFixed(1);
   setHint(`grav x:${gx} y:${gy} z:${gz}`, '#555');
 
-  const val = ay;
+  const val = isVertical ? ay : az;
   const THRESHOLD = 8;
 
   if (!active || sensorLocked) return;
